@@ -1,0 +1,32 @@
+slippage - limit quality flag
+
+
+
+pool fee
+token1 fee
+token 2 fee
+likely to receive
+slippage enabled
+partial enabled
+
+
+
+
+network fee
+price impact
+minimum output
+expected output
+route or path
+
+paths -- 
+
+
+show roi in pool with pool fee
+
+
+"https://s.altnet.rippletest.net:51234"
+"https://testnet.xrpl.org/accounts/"
+"https://testnet.xrpl.org/transactions/"
+"https://xrplcluster.com"
+"https://livenet.xrpl.org/accounts/"
+"https://livenet.xrpl.org/transactions/"

@@ -1,0 +1,39 @@
+last good version: 2.4.0
+
+new: 2.6.0
+
+even newer: 3.0.0
+
+
+Flags.py:
+    Enable Clawback
+    rehost flags.py
+
+Objects.py:
+    add invoice_id param to check_create
+    deposit_pre_auth: to allow accounts to send money to you
+    is_deposit_authorized: req to check if deposit auth from and accounts
+    create_ticket
+    cancel_ticket
+    account_tickets
+    create_xrp_payment_channel
+    claim_xrp_payment_channel_funds
+    renew_payment_channel
+    close_payment_channel
+    update_xrp_payment_channel
+    generate_xrp_channel_signature
+    verify_xrp_payment_channel_signature
+    account_xrp_paymentchannels
+    create_did
+    update_did
+    delete_did
+    account_did
+
+Wallet.py
+    if token has fee - enable partial
+
+Info.py
+    
+
+    
+
