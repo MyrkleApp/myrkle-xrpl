@@ -69,12 +69,13 @@ def delete_did(sender_addr: str) -> dict:
     return txn.to_xrpl() 
 
 
-# settle delay max = 2**32-1 time in seconds, Amount of time the source address must wait before closing the channel if it has unclaimed XRP.
-def create_xrp_payment_channel(sender_addr: str, public_key: str, amount: Union[int, float, Decimal], receiver: str, settle_delay: int, cancel_after: int = None, destination_tag: int = None, fee: str = None) -> dict:
-    txn = PaymentChannelCreate(account=sender_addr, amount=xrp_to_drops(amount), destination=receiver, settle_delay=settle_delay, public_key=public_key, cancel_after=cancel_after, destination_tag=destination_tag, fee=fee, memos=mm(), source_tag=M_SOURCE_TAG)
+# settle delay max = 2**32-1 time in seconds, Amount of time the source address must wait before closing the channel if it has unclaimed XRP. can be 0 - 4294967295 seconds[136.193 years]
+def create_xrp_payment_channel(sender_addr: str, public_key: str, amount: Union[int, float, Decimal], receiver: str, settle_delay: int, immutable_expiry_date: int = None, destination_tag: int = None, fee: str = None) -> dict:
+    txn = PaymentChannelCreate(account=sender_addr, amount=xrp_to_drops(amount), destination=receiver, settle_delay=settle_delay, public_key=public_key, cancel_after=immutable_expiry_date, destination_tag=destination_tag, fee=fee, memos=mm(), source_tag=M_SOURCE_TAG)
     return txn.to_xrpl()
 
-def claim_xrp_payment_channel_funds(sender_addr: str, public_key: str, channel_id: str, signature: str, amount: str, fee: str = None) -> dict:
+# Signature can be none if the function caller if the payment channel creator. To Send XRP from the channel to the destination with or without a signed Claim.
+def claim_xrp_payment_channel_funds(sender_addr: str, public_key: str, channel_id: str, signature: str = None, amount: Union[int, float, Decimal] = None, fee: str = None) -> dict:
     txn = PaymentChannelClaim(account=sender_addr, channel=channel_id, signature=signature, amount=xrp_to_drops(amount), balance=xrp_to_drops(amount), public_key=public_key, fee=fee, memos=mm(), source_tag=M_SOURCE_TAG)
     return txn.to_xrpl()
 
@@ -84,7 +85,7 @@ def update_xrp_payment_channel(sender_addr: str, channel_id: str, amount: Union[
     return txn.to_xrpl()
 
 def renew_payment_channel(sender_addr: str, channel_id: str, fee: str = None) -> dict:
-    """Clear the channel's Expiration time."""
+    """Clear the channel's Expiration time, different from the immutable cancel after time"""
     txn = PaymentChannelClaim(account=sender_addr, channel=channel_id, flags=PaymentChannelClaimFlag.TF_RENEW, fee=fee, memos=mm(), source_tag=M_SOURCE_TAG)
     return txn.to_xrpl()
 
@@ -96,12 +97,12 @@ def generate_xrp_payment_channel_signature(channel_id: str, amount: Union[int, D
     data = encode_for_signing_claim({"channel": channel_id, "amount": xrp_to_drops(amount)})
     return sign(data, private_key)
 
-# def verify_xrp_payment_channel_signature(channel_id: str, amount: Union[int, float, Decimal], public_key: str, signature: str) -> bool:
-#     """check the validity of a signature that can be used to redeem a specific amount of XRP from a payment channel."""
-#     value = False
-#     data = encode_for_signing_claim({"channel": channel_id, "amount": xrp_to_drops(amount)})
-#     value = is_valid_message(data, signature, public_key)
-#     return value
+def verify_xrp_payment_channel_signature(channel_id: str, amount: Union[int, float, Decimal], public_key: str, signature: str) -> bool:
+    """check the validity of a signature that can be used to redeem a specific amount of XRP from a payment channel."""
+    value = False
+    data = encode_for_signing_claim({"channel": channel_id, "amount": xrp_to_drops(amount)})
+    value = is_valid_message(data, signature, public_key)
+    return value
 
 def create_ticket(sender_addr: str, ticket_count: int, ticket_seq: int = None, fee: str = None) -> dict:
     """create a ticket - ticket_count = how many ticket =< 250, ticket_seq = the account seq to count from"""
@@ -236,16 +237,7 @@ class xObject(AsyncJsonRpcClient):
             did["data"] = result["node"]["Data"]
             did["uri"] = result["node"]["URI"]
         return did
-
-    async def verify_xrp_payment_channel_signature(self, channel_id: str, amount: Union[int, float, Decimal], public_key: str, signature: str) -> bool:
-        """check the validity of a signature that can be used to redeem a specific amount of XRP from a payment channel."""
-        value = False
-        req = ChannelVerify(channel_id=channel_id, amount=xrp_to_drops(amount), public_key=public_key, signature=signature)
-        response = await self.client.request(req)
-        result = response.result
-        if "signature_verified" in result:
-            value = result["signature_verified"]
-        return value    
+ 
     
     async def is_deposit_authorized(self, sender_addr: str, receiver_addr: str) -> bool:
         """check if an account is authorized to send xrp to another account"""
@@ -256,6 +248,16 @@ class xObject(AsyncJsonRpcClient):
         if "deposit_authorized" in result:
             value = result["is_deposit_authorized"]
         return value
+
+    async def verify_xrp_payment_channel_signature(self, channel_id: str, amount: Union[int, float, Decimal], public_key: str, signature: str) -> bool:
+        """check the validity of a signature that can be used to redeem a specific amount of XRP from a payment channel."""
+        value = False
+        req = ChannelVerify(channel_id=channel_id, amount=xrp_to_drops(amount), public_key=public_key, signature=signature)
+        response = await self.client.request(req)
+        result = response.result
+        if "signature_verified" in result:
+            value = result["signature_verified"]
+        return value   
 
     async def account_xrp_payment_channels(self, wallet_addr: str) -> list:
         """return a list of the payment channels created by an account"""
@@ -269,13 +271,14 @@ class xObject(AsyncJsonRpcClient):
                 paymentchannel_data = {}
                 paymentchannel_data["channel_id"] = paymentchannel["index"]
                 paymentchannel_data["sender"] = paymentchannel["Account"]
+                # add condition to check if the amount is xrp
                 paymentchannel_data["amount_deposited"] = str(drops_to_xrp(paymentchannel["Amount"]))
                 paymentchannel_data["amount_paid_out"] = str(drops_to_xrp(paymentchannel["Balance"]))
                 paymentchannel_data["amount_remaining"] = str(drops_to_xrp(str(int(paymentchannel["Amount"]) - int(paymentchannel["Balance"]))))
                 paymentchannel_data["receiver"] = paymentchannel["Destination"]
                 paymentchannel_data["settle_delay"] = str(timedelta(seconds=(paymentchannel["SettleDelay"])))
                 paymentchannel_data["public_key"] = paymentchannel["PublicKey"]
-                paymentchannel_data["cancel_after_date"] = str(ripple_time_to_datetime(paymentchannel["CancelAfter"])) if "CancelAfter" in paymentchannel else ''
+                paymentchannel_data["immutable_expiry_date"] = str(ripple_time_to_datetime(paymentchannel["CancelAfter"])) if "CancelAfter" in paymentchannel else ''
                 paymentchannel_data["expiry_date"] = str(ripple_time_to_datetime(paymentchannel["Expiration"])) if "Expiration" in paymentchannel else ''
                 paymentchannel_data["destination_tag"] = paymentchannel["DestinationTag"] if "DestinationTag" in paymentchannel else ''
                 paymentchannels_.append(paymentchannel_data)
@@ -405,7 +408,7 @@ class xObject(AsyncJsonRpcClient):
                 of["rate"] = float(of["sell_amount"])/float(of["buy_amount"])
                 offer_list.append(of)
         return offer_list
-
+    
     async def all_offers(self, pay: Union[XRP, IssuedCurrency], receive: Union[XRP, IssuedCurrency]) -> list:
         """returns all offers for 2 pairs"""
         all_offers_list = []
@@ -490,6 +493,50 @@ p = xObject("http://s.altnet.rippletest.net:51234")
 
 
 
+# from xrpl.wallet import Wallet
+# from xrpl.asyncio.transaction import sign_and_submit
+# from xrpl.models import Transaction
+
+
+# issuer1addr = "rpmsgLmYHky4Qw7fGu4jLr4Xu1dS5Q849n"
+# issuer1 = Wallet.from_seed(
+#     seed="sEdTrmLZpWyUeUnFwq7bze2yFUxJByh"
+# ) 
+
+# asyncclient = AsyncJsonRpcClient("https://s.altnet.rippletest.net:51234")
+
+
+# print(asyncio.run(sign_and_submit(Transaction.from_xrpl(create_ticket(
+#     sender_addr=issuer1addr,
+#     ticket_count=10,
+#     ticket_seq=None, 
+# )), asyncclient, issuer1  )))
+
+
+from xrpl.wallet import Wallet
+from xrpl.clients import JsonRpcClient
+from xrpl.models import Transaction, TicketCreate
+from xrpl.transaction.main import sign_and_submit
+from datetime import datetime
+from xrpl.asyncio.transaction.main import sign
+
+# C:\Users\oamba\Desktop\XRPLv3\venv\Lib\site-packages\xrpl\asyncio\transaction\main.py
+
+acc1_addr = "rpmsgLmYHky4Qw7fGu4jLr4Xu1dS5Q849n"
+acc1 = Wallet.from_seed(
+    seed="sEdTrmLZpWyUeUnFwq7bze2yFUxJByh"
+) 
 
 
 
+url = "https://s.altnet.rippletest.net:51234"
+client = JsonRpcClient(url)
+
+x = create_xrp_payment_channel(
+    acc1.address, acc1.public_key, 10, "rNSrjYiN1Lorv7nzJnna5jkh91ZqcA8KsG", 100, datetime_to_ripple_time(datetime.now() + timedelta(days=10)), 100101
+)
+
+
+# print(x)
+
+print(sign_and_submit(Transaction.from_xrpl(value=x),client, acc1))

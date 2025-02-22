@@ -4,28 +4,65 @@ from typing import Union
 from xrpl.asyncio.clients import AsyncJsonRpcClient
 from xrpl.clients import JsonRpcClient
 from xrpl.asyncio.ledger import get_fee
-from xrpl.models import (AccountInfo, AccountLines, AccountNFTs, AccountTx, IssuedCurrencyAmount, Memo, NFTokenAcceptOffer,NFTokenCreateOffer, NFTokenCreateOfferFlag, Payment,PaymentFlag)
+from xrpl.models import (
+    AccountInfo,
+    AccountLines,
+    AccountNFTs,
+    AccountTx,
+    IssuedCurrencyAmount,
+    Memo,
+    NFTokenAcceptOffer,
+    NFTokenCreateOffer,
+    NFTokenCreateOfferFlag,
+    Payment,
+    PaymentFlag,
+)
 from xrpl.utils import drops_to_xrp, ripple_time_to_datetime, xrp_to_drops
 
-from Misc import (is_hex, memo_builder, validate_hex_to_symbol, validate_symbol_to_hex,
-                  xrp_format_to_nft_fee)
+from Misc import (
+    is_hex,
+    memo_builder,
+    validate_hex_to_symbol,
+    validate_symbol_to_hex,
+    xrp_format_to_nft_fee,
+)
 
 from x_constants import D_DATA, D_TYPE, M_SOURCE_TAG
 
 
-def send_xrp( sender_addr: str, receiver_addr: str, amount: Union[float, Decimal, int],
-    destination_tag: int = None, memo: Memo = None, fee: str = None) -> dict:
+def send_xrp(
+    sender_addr: str,
+    receiver_addr: str,
+    amount: Union[float, Decimal, int],
+    destination_tag: int = None,
+    memo: Memo = None,
+    fee: str = None,
+) -> dict:
     """send xrp"""
     txn = Payment(
         account=sender_addr,
         amount=xrp_to_drops(amount),
         destination=receiver_addr,
         destination_tag=destination_tag,
-        source_tag=M_SOURCE_TAG, fee=fee, memos=[memo])
+        source_tag=M_SOURCE_TAG,
+        fee=fee,
+        memos=[memo],
+    )
     return txn.to_xrpl()
 
-def send_token( sender_addr: str, receiver_addr: str, token: str, amount: str, issuer: str, partial: bool = False ,is_lp_token: bool = False,
-    destination_tag: int = None, memo: Memo = None, fee: str = None) -> dict:
+
+def send_token(
+    sender_addr: str,
+    receiver_addr: str,
+    token: str,
+    amount: str,
+    issuer: str,
+    partial: bool = False,
+    is_lp_token: bool = False,
+    destination_tag: int = None,
+    memo: Memo = None,
+    fee: str = None,
+) -> dict:
     """send asset...
     if token has fee - enable partial
     max amount = 15 decimal places"""
@@ -38,15 +75,18 @@ def send_token( sender_addr: str, receiver_addr: str, token: str, amount: str, i
         destination=receiver_addr,
         amount=IssuedCurrencyAmount(currency=cur, issuer=issuer, value=amount),
         destination_tag=destination_tag,
-        fee=fee, flags=flags, 
+        fee=fee,
+        flags=flags,
         send_max=IssuedCurrencyAmount(currency=cur, issuer=issuer, value=amount),
         memos=[memo],
-        source_tag=M_SOURCE_TAG)
+        source_tag=M_SOURCE_TAG,
+    )
     return txn.to_xrpl()
 
 
-
-def send_nft(sender_addr: str, nftoken_id: str, receiver: str, memo: Memo = None, fee: str = None) -> dict:
+def send_nft(
+    sender_addr: str, nftoken_id: str, receiver: str, memo: Memo = None, fee: str = None
+) -> dict:
     """send an nft"""
     txn = NFTokenCreateOffer(
         account=sender_addr,
@@ -56,16 +96,21 @@ def send_nft(sender_addr: str, nftoken_id: str, receiver: str, memo: Memo = None
         flags=NFTokenCreateOfferFlag.TF_SELL_NFTOKEN.value,
         memos=[memo],
         source_tag=M_SOURCE_TAG,
-        fee=fee)
+        fee=fee,
+    )
     return txn.to_xrpl()
 
 
 def receive_nft(sender_addr: str, nft_sell_id: str, fee: str = None) -> dict:
     """receive an nft"""
     txn = NFTokenAcceptOffer(
-        account=sender_addr, nftoken_sell_offer=nft_sell_id, fee=fee, source_tag=M_SOURCE_TAG, memos=[memo_builder(D_TYPE, D_DATA)])
+        account=sender_addr,
+        nftoken_sell_offer=nft_sell_id,
+        fee=fee,
+        source_tag=M_SOURCE_TAG,
+        memos=[memo_builder(D_TYPE, D_DATA)],
+    )
     return txn.to_xrpl()
-
 
 
 class xWallet(AsyncJsonRpcClient):
@@ -88,9 +133,7 @@ class xWallet(AsyncJsonRpcClient):
             _balance = int(result["account_data"]["Balance"]) - 10000000
             owner_count = int(result["account_data"]["OwnerCount"])
             balance = _balance - (2000000 * owner_count)
-        return {
-            "object_count": owner_count,
-            "balance": str(drops_to_xrp(str(balance)))}
+        return {"object_count": owner_count, "balance": str(drops_to_xrp(str(balance)))}
 
     async def xrp_transactions(self, wallet_addr: str) -> dict:
         """return all xrp payment transactions an address has carried out"""
@@ -106,9 +149,16 @@ class xWallet(AsyncJsonRpcClient):
                     transact = {}
                     transact["sender"] = transaction["tx"]["Account"]
                     transact["receiver"] = transaction["tx"]["Destination"]
-                    transact["amount"] = str(drops_to_xrp(str(transaction["meta"]["delivered_amount"]))) if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], str) else str(drops_to_xrp(str(transaction["tx"]["Amount"])))
+                    transact["amount"] = (
+                        str(drops_to_xrp(str(transaction["meta"]["delivered_amount"])))
+                        if "delivered_amount" in transaction["meta"]
+                        and isinstance(transaction["meta"]["delivered_amount"], str)
+                        else str(drops_to_xrp(str(transaction["tx"]["Amount"])))
+                    )
                     transact["fee"] = str(drops_to_xrp(str(transaction["tx"]["Fee"])))
-                    transact["timestamp"] = str(ripple_time_to_datetime(transaction["tx"]["date"]))
+                    transact["timestamp"] = str(
+                        ripple_time_to_datetime(transaction["tx"]["date"])
+                    )
                     transact["result"] = transaction["meta"]["TransactionResult"]
                     transact["txid"] = transaction["tx"]["hash"]
                     transact["tx_type"] = transaction["tx"]["TransactionType"]
@@ -131,15 +181,42 @@ class xWallet(AsyncJsonRpcClient):
         result = response.result
         if "transactions" in result:
             for transaction in result["transactions"]:
-                if transaction["tx"]["TransactionType"] == "Payment" and isinstance(transaction["tx"]["Amount"], dict):  
+                if transaction["tx"]["TransactionType"] == "Payment" and isinstance(
+                    transaction["tx"]["Amount"], dict
+                ):
                     transact = {}
                     transact["sender"] = transaction["tx"]["Account"]
                     transact["receiver"] = transaction["tx"]["Destination"]
-                    transact["token"] = validate_hex_to_symbol(transaction["meta"]["delivered_amount"]["currency"]) if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else validate_hex_to_symbol(transaction["tx"]["Amount"]["currency"])
-                    transact["issuer"] = transaction["meta"]["delivered_amount"]["issuer"] if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else validate_hex_to_symbol(transaction["tx"]["Amount"]["issuer"])
-                    transact["amount"] = transaction["meta"]["delivered_amount"]["value"] if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else validate_hex_to_symbol(transaction["tx"]["Amount"]["value"])
+                    transact["token"] = (
+                        validate_hex_to_symbol(
+                            transaction["meta"]["delivered_amount"]["currency"]
+                        )
+                        if "delivered_amount" in transaction["meta"]
+                        and isinstance(transaction["meta"]["delivered_amount"], dict)
+                        else validate_hex_to_symbol(
+                            transaction["tx"]["Amount"]["currency"]
+                        )
+                    )
+                    transact["issuer"] = (
+                        transaction["meta"]["delivered_amount"]["issuer"]
+                        if "delivered_amount" in transaction["meta"]
+                        and isinstance(transaction["meta"]["delivered_amount"], dict)
+                        else validate_hex_to_symbol(
+                            transaction["tx"]["Amount"]["issuer"]
+                        )
+                    )
+                    transact["amount"] = (
+                        transaction["meta"]["delivered_amount"]["value"]
+                        if "delivered_amount" in transaction["meta"]
+                        and isinstance(transaction["meta"]["delivered_amount"], dict)
+                        else validate_hex_to_symbol(
+                            transaction["tx"]["Amount"]["value"]
+                        )
+                    )
                     transact["fee"] = str(drops_to_xrp(str(transaction["tx"]["Fee"])))
-                    transact["timestamp"] = str(ripple_time_to_datetime(transaction["tx"]["date"]))
+                    transact["timestamp"] = str(
+                        ripple_time_to_datetime(transaction["tx"]["date"])
+                    )
                     transact["result"] = transaction["meta"]["TransactionResult"]
                     transact["txid"] = transaction["tx"]["hash"]
                     transact["tx_type"] = transaction["tx"]["TransactionType"]
@@ -164,23 +241,64 @@ class xWallet(AsyncJsonRpcClient):
                     transact = {}
                     transact["sender"] = transaction["tx"]["Account"]
                     transact["receiver"] = transaction["tx"]["Destination"]
-                    if isinstance(transaction["tx"]['Amount'], str):
+                    if isinstance(transaction["tx"]["Amount"], str):
                         transact["token"] = "XRP"
                         transact["issuer"] = ""
-                        transact["amount"] = str(drops_to_xrp(str(transaction["meta"]["delivered_amount"]))) if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], str) else str(drops_to_xrp(str(transaction["tx"]["Amount"])))
-                    if isinstance(transaction["tx"]["Amount"], dict) or "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict):
-                        transact["token"] = validate_hex_to_symbol(transaction["meta"]["delivered_amount"]["currency"]) if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else validate_hex_to_symbol(transaction["tx"]["Amount"]["currency"])
-                        transact["issuer"] = transaction["meta"]["delivered_amount"]["issuer"] if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else validate_hex_to_symbol(transaction["tx"]["Amount"]["issuer"])
-                        transact["amount"] = transaction["meta"]["delivered_amount"]["value"] if "delivered_amount" in transaction["meta"] and isinstance(transaction["meta"]["delivered_amount"], dict) else transaction["tx"]["Amount"]["value"]
+                        transact["amount"] = (
+                            str(
+                                drops_to_xrp(
+                                    str(transaction["meta"]["delivered_amount"])
+                                )
+                            )
+                            if "delivered_amount" in transaction["meta"]
+                            and isinstance(transaction["meta"]["delivered_amount"], str)
+                            else str(drops_to_xrp(str(transaction["tx"]["Amount"])))
+                        )
+                    if (
+                        isinstance(transaction["tx"]["Amount"], dict)
+                        or "delivered_amount" in transaction["meta"]
+                        and isinstance(transaction["meta"]["delivered_amount"], dict)
+                    ):
+                        transact["token"] = (
+                            validate_hex_to_symbol(
+                                transaction["meta"]["delivered_amount"]["currency"]
+                            )
+                            if "delivered_amount" in transaction["meta"]
+                            and isinstance(
+                                transaction["meta"]["delivered_amount"], dict
+                            )
+                            else validate_hex_to_symbol(
+                                transaction["tx"]["Amount"]["currency"]
+                            )
+                        )
+                        transact["issuer"] = (
+                            transaction["meta"]["delivered_amount"]["issuer"]
+                            if "delivered_amount" in transaction["meta"]
+                            and isinstance(
+                                transaction["meta"]["delivered_amount"], dict
+                            )
+                            else validate_hex_to_symbol(
+                                transaction["tx"]["Amount"]["issuer"]
+                            )
+                        )
+                        transact["amount"] = (
+                            transaction["meta"]["delivered_amount"]["value"]
+                            if "delivered_amount" in transaction["meta"]
+                            and isinstance(
+                                transaction["meta"]["delivered_amount"], dict
+                            )
+                            else transaction["tx"]["Amount"]["value"]
+                        )
                     transact["fee"] = str(drops_to_xrp(str(transaction["tx"]["Fee"])))
-                    transact["timestamp"] = str(ripple_time_to_datetime(transaction["tx"]["date"]))
+                    transact["timestamp"] = str(
+                        ripple_time_to_datetime(transaction["tx"]["date"])
+                    )
                     transact["result"] = transaction["meta"]["TransactionResult"]
                     transact["txid"] = transaction["tx"]["hash"]
                     transact["tx_type"] = transaction["tx"]["TransactionType"]
                     # transact["memo"] = transaction["tx"]["Memo"] // this is a list that contains dicts 'parse later'
                     transactions.append(transact)
         return transactions
-
 
     async def account_tokens(self, wallet_addr: str) -> list:
         """returns all tokens except LP tokens a wallet address is holding with their respective issuers, limit and balances"""
@@ -203,7 +321,9 @@ class xWallet(AsyncJsonRpcClient):
                     asset["freeze_status"] = False
                     asset["ripple_status"] = False
                     if "no_ripple" in line:
-                        asset["ripple_status"] = line["no_ripple"]  # no ripple = true, means rippling is disabled which is good; else bad
+                        asset["ripple_status"] = line[
+                            "no_ripple"
+                        ]  # no ripple = true, means rippling is disabled which is good; else bad
                     if "freeze" in line:
                         asset["freeze_status"] = line["freeze"]
                     """Query for domain and transfer rate with info.get_token_info()"""
@@ -217,7 +337,7 @@ class xWallet(AsyncJsonRpcClient):
         response = await self.client.request(acc_info)
         result = response.result
         if "account_nfts" in result:
-            account_nfts = result["account_nfts"] 
+            account_nfts = result["account_nfts"]
             for nfts in account_nfts:
                 nft = {}
                 nft["flags"] = nfts["Flags"] if "Flags" in nfts else 0
@@ -225,13 +345,17 @@ class xWallet(AsyncJsonRpcClient):
                 nft["id"] = nfts["NFTokenID"]
                 nft["taxon"] = nfts["NFTokenTaxon"]
                 nft["serial"] = nfts["nft_serial"]
-                nft["uri"] = validate_hex_to_symbol(nfts["URI"]) if "URI" in nfts else ""
-                nft["transfer_fee"] = xrp_format_to_nft_fee(nfts["TransferFee"]) if "TransferFee" in nfts else 0
+                nft["uri"] = (
+                    validate_hex_to_symbol(nfts["URI"]) if "URI" in nfts else ""
+                )
+                nft["transfer_fee"] = (
+                    xrp_format_to_nft_fee(nfts["TransferFee"])
+                    if "TransferFee" in nfts
+                    else 0
+                )
                 account_nft.append(nft)
         return account_nft
-    
-    
-    
+
 
 # client = AsyncJsonRpcClient("http://s.devnet.rippletest.net:51234")
 # client = AsyncJsonRpcClient("https://s.altnet.rippletest.net:51234")
@@ -243,7 +367,6 @@ d = xWallet(client.url)
 # response =  client.request(acc_info)
 # result = response.result
 # print(result)
-
 
 
 # print(asyncio.run(  d.account_tokens(
@@ -270,11 +393,11 @@ d = xWallet(client.url)
 #         destination=receiver_addr,
 #         destination_tag=destination_tag,
 #         source_tag=M_SOURCE_TAG, fee=fee, memos=[memo],  flags=[
-#             # PaymentFlag.TF_PARTIAL_PAYMENT, 
+#             # PaymentFlag.TF_PARTIAL_PAYMENT,
 #             # PaymentFlag.TF_LIMIT_QUALITY,
-            
+
 #         ])
-    
+
 #     print(sign_and_submit(
 #         txn, client, sender,
 #     ).result["engine_result"])
@@ -298,7 +421,7 @@ d = xWallet(client.url)
 #         destination=receiver_addr,
 #         amount=IssuedCurrencyAmount(currency=cur, issuer=issuer, value=amount),
 #         destination_tag=destination_tag,
-#         fee=fee, flags=flags, 
+#         fee=fee, flags=flags,
 #         send_max=IssuedCurrencyAmount(currency=cur, issuer=issuer, value=amount),
 #         memos=[memo],
 #         source_tag=M_SOURCE_TAG)
@@ -308,13 +431,13 @@ d = xWallet(client.url)
 
 # send_token(
 #     partial=True,
-     
 
-#     amount=10, 
+
+#     amount=10,
 #       token="NGN", issuer="rHTfx7p4ge8CfDhyoczpSwc84LWfiK3dhN",
 #     sender_addr=issuer1.classic_address,
-    
-    
+
+
 #     receiver_addr="rDtnYC916KsnYmNsy1mGJt6KWuTYUFFCgY"
 # )
 
@@ -328,9 +451,8 @@ d = xWallet(client.url)
 # print(asyncio.run(
 #     d.xrp_transactions(
 #         "rGiyqjWjhsRZ8FUjBL2k5ciUa2tcptTX9W"
-#     )   
+#     )
 # ))
-
 
 
 # print(send_token(
@@ -338,7 +460,7 @@ d = xWallet(client.url)
 # "rqga9EVfFAj2HJMwmFVccDS6zgXrRgh9j",
 # "USD", "10", "rBZJzEisyXt2gvRWXLxHftFRkd1vJEpBQP", True
 # ))
-    
+
 # print(send_xrp(
 #     "rGiyqjWjhsRZ8FUjBL2k5ciUa2tcptTX9W",
 #     "rHiyqjWjhsRZ8FUjBL2k5ciUa2tcptTX9W",
@@ -348,7 +470,6 @@ d = xWallet(client.url)
 # ))
 
 
-
 # pp = send_nft(
 #     "rGiyqjWjhsRZ8FUjBL2k5ciUa2tcptTX9W", "00080000ADFDB77A8B3A255EB4DEC33759232E724309D0700000099A00000000", "rBZJzEisyXt2gvRWXLxHftFRkd1vJEpBQP"
 # )
@@ -356,14 +477,11 @@ d = xWallet(client.url)
 # print(pp)
 
 
-
 # import json
 
 # # Serializing json
 # json_object = json.dumps(pp, indent=4)
- 
+
 # # Writing to sample.json
 # with open("wsof.json", "w") as outfile:
 #     outfile.write(json_object)
-
-

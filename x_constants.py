@@ -18,6 +18,7 @@ D_TYPE = "Done-with-Myrkle"
 D_DATA = "https://myrkle.app"
 
 ACCOUNT_ROOT_FLAGS = [
+    # TODO: add nftoken minter and clawback 
     {
         "flagname": "lsfDefaultRipple",
         "hex": 0x00800000,
@@ -79,7 +80,7 @@ ACCOUNT_ROOT_FLAGS = [
         "hex": 0x00400000,
         "decimal": 4194304,
         "asf": "asfGlobalFreeze",
-        "description": "All assets issued by this address are frozen."
+        "description": "Freeze all assets issued by this account"
     },    
     {
         "flagname": "lsfNoFreeze",

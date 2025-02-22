@@ -37,3 +37,6 @@ Info.py
 
     
 
+# TODO:
+simulate transactions
+batch transactions

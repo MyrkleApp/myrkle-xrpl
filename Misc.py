@@ -134,11 +134,26 @@ def validate_symbol_to_hex(symbol: str = None) -> str:
         return result
 
 
+def is_hex(hex_string: str) -> bool:
+    """check if the string is hex """
+    is_hex = False
+    try:
+        if isinstance(hex_to_symbol(hex_string), str):
+            is_hex = True
+    except Exception as e:
+        is_hex = False
+    finally:
+        return is_hex
+
+
+
+
+
 """
-nft and token fees min decimal = 0.00
+nft and token fees min decimal = 0.001
 amm fees min decimal = 0.001
 
-nft fees = 0 - 50%
+nft fees = 0 - 50% : transfer rates between 0.000% and 50.000% in increments of 0.001%.
 token fees = 0 - 100%
 amm fees = 0 - 1%
 """
@@ -277,22 +292,28 @@ def parse_pay_txn_flag(pay_flag: int) -> list:
     return flags
 
 
-def get_test_xrp(wallet: Wallet = None) -> None:
-    """fund your account with free 1000 test xrp"""
-    testnet_url = "http://s.devnet.rippletest.net:51234"
-    testnet_url = "https://s.altnet.rippletest.net:51234"
-    client = JsonRpcClient(testnet_url)
-    print(generate_faucet_wallet(client).seed)
-    print()
+# def get_test_xrp(wallet: Wallet = None) -> None:
+#     """fund your account with free 1000 test xrp"""
+#     testnet_url = "http://s.devnet.rippletest.net:51234"
+#     testnet_url = "https://s.altnet.rippletest.net:51234"
+#     client = JsonRpcClient(testnet_url)
+#     print(generate_faucet_wallet(client).seed)
+#     print()
 
 
-print(get_test_xrp())
+# print(get_test_xrp())
 
+# sEdTrmLZpWyUeUnFwq7bze2yFUxJByh
 
-# wals = [Wallet.from_seed(seed= "sEdS1jTVU58HsPeL4xhPkziphnxFDHz"),
-# Wallet.from_seed(seed= "sEdVdthdYnRRLqBXAD76QC7CatoLqU8"),
-#  Wallet.from_seed(seed= "sEd7Nh8MGkfpfhfh2Q7R7RVK9zPGhKa"),
-# Wallet.from_seed(seed= "sEd7gZdeatsAwuMJp2uhbJ9vgFfohMd"),]
+wals = [Wallet.from_seed(seed= "sEdS1jTVU58HsPeL4xhPkziphnxFDHz"),
+Wallet.from_seed(seed= "sEdVdthdYnRRLqBXAD76QC7CatoLqU8"),
+Wallet.from_seed(seed= "sEdTrmLZpWyUeUnFwq7bze2yFUxJByh"),
+ Wallet.from_seed(seed= "sEd7Nh8MGkfpfhfh2Q7R7RVK9zPGhKa"),
+Wallet.from_seed(seed= "sEd7gZdeatsAwuMJp2uhbJ9vgFfohMd"),]
 
-# for i in wals:
-#     get_test_xrp(i)
+print(wals[1].address)
+
+for i in wals:
+    get_test_xrp(i)
+    print(i.address)
+   

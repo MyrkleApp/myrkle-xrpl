@@ -70,6 +70,10 @@ class xInfo(AsyncJsonRpcClient):
         """
         offer_info = {}
 
+
+        # if offer_id != None:
+        # do here
+
         query = LedgerEntry(
             ledger_index="validated", offer=Offer(account=offer_creator, seq=sequence)
         )
@@ -257,14 +261,9 @@ class xInfo(AsyncJsonRpcClient):
         """return information about an nft offer"""
         offer_info = {}
         response = (
-            requests.get(
-                f"https://api.xrpldata.com/api/v1/xls20-nfts/offer/id/{offer_id}"
-            ).json()
+            requests.get(f"https://api.xrpldata.com/api/v1/xls20-nfts/offer/id/{offer_id}").json()
             if mainnet
-            else requests.get(
-                f"https://test-api.xrpldata.com/api/v1/xls20-nfts/offer/id/{offer_id}"
-            ).json()
-        )
+            else requests.get(f"https://test-api.xrpldata.com/api/v1/xls20-nfts/offer/id/{offer_id}").json())
         if "data" in response and isinstance(response["data"]["offer"], dict):
             offer = response["data"]["offer"]
             offer_info["offer_id"] = offer["OfferID"]
