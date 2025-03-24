@@ -2,7 +2,7 @@
 
 Myrkle is a Web3 super app that simplifies access to the XRP Ledger's native features. It allows users to create and manage objects, view detailed token and NFT data, create and exchange digital assets, and manage escrow transactions and do much more with zero stress.
 
-The code contained in this repo interacts with the XRP Ledger on behalf of Myrkle
+The code contained in this repo interacts with the XRP Ledger on behalf of Myrkle.
 
 ## Features - Include but not limited to
 - **Wallet Management** – Easily create, import, and manage XRPL wallets.
@@ -36,7 +36,7 @@ source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 pip install -r requirements.txt
 ```
 
-## Usage
+## XRPL Usage
 
 ### Running the files
 1. Create a file of your choice e.g `checks_test.py` to test the checks package
